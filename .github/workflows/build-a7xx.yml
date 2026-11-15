@@ -1,4 +1,4 @@
-name: Build Turnip Full A7xx MaxFPS (Kimchi Base)
+ name: Build Turnip Full A7xx MaxFPS (Kimchi Base)
 
 on:
   workflow_dispatch:
@@ -16,17 +16,18 @@ jobs:
       - name: Instalar dependencias de compilación
         run: |
           sudo apt-get update
-          sudo apt-get install -y meson ninja-build python3-mako python3-pip glslang-tools zip ccache
+          sudo apt-get install -y meson ninja-build python3-mako python3-pip glslang-tools zip ccache wget tar
           pip3 install meson --upgrade
 
       - name: Configurar Android NDK preinstalado
         run: |
           echo "NDK_PATH=$ANDROID_NDK_LATEST_HOME" >> $GITHUB_ENV
-          ls -la $ANDROID_NDK_LATEST_HOME
 
-      - name: Clonar Mesa de K11MCH1 (Con parches DXVK/Android)
+      - name: Descargar código fuente de Mesa Turnip
         run: |
-          git clone --depth=1 https://github.com -b main mesa-kimchi
+          wget -q https://mesa3d.org
+          tar -xf mesa-24.3.4.tar.xz
+          mv mesa-24.3.4 mesa-kimchi
 
       - name: Verificar y optimizar soporte completo Adreno 700 (710 a 750)
         working-directory: mesa-kimchi
@@ -41,7 +42,7 @@ jobs:
               f.write(code)
 
           for gpu in ['710', '720', '722', '725', '730', '732', '735', '740', '750']:
-              status = 'INCLUIDA' if f'Adreno {gpu}' in code or f'A{gpu}' in code else 'NO ENCONTRADA EN ESTA RAMA'
+              status = 'INCLUIDA' if f'Adreno {gpu}' in code or f'A{gpu}' in code else 'NO ENCONTRADA'
               print(f'Adreno {gpu}: {status}')
           EOF
           python3 patch_a7xx.py
@@ -96,11 +97,11 @@ jobs:
           {
             "schemaVersion": 1,
             "name": "${{ github.event.inputs.driver_name }}",
-            "description": "Turnip K11MCH1 para toda la serie Adreno 700 (710/720/722/725/730/732/735/740/750) - Max FPS",
+            "description": "Turnip K11MCH1 Style para toda la serie Adreno 700 (710-750) - Max FPS",
             "author": "K11MCH1 / CustomA7xx",
             "packageVersion": "1",
             "vendor": "Mesa",
-            "driverVersion": "Vulkan 1.3",
+            "driverVersion": "Vulkan 1.3.296",
             "minApi": 30,
             "libraryName": "vulkan.ad07xx.so"
           }
