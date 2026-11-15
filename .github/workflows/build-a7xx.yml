@@ -1,5 +1,4 @@
-name: Build Turnip Full A7xx MaxFPS (Kimchi Base)
-
+name: Build Turnip Full A7xx MaxFPS
 on:
   workflow_dispatch:
     inputs:
@@ -7,110 +6,50 @@ on:
         description: 'Nombre del Driver en meta.json'
         required: true
         default: 'Turnip-Full-A7xx-Kimchi-MaxFPS'
-
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Instalar dependencias de compilación
+      - name: Instalar dependencias
         run: |
           sudo apt-get update
           sudo apt-get install -y meson ninja-build python3-mako python3-pip glslang-tools zip ccache wget tar
-          pip3 install meson --upgrade
+          pip3 install meson --upgrade --break-system-packages || pip3 install meson --upgrade
 
-      - name: Configurar Android NDK preinstalado
+      - name: Configurar NDK
         run: |
           echo "NDK_PATH=$ANDROID_NDK_LATEST_HOME" >> $GITHUB_ENV
 
-      - name: Descargar código fuente de Mesa Turnip
+      - name: Descargar Mesa Turnip
         run: |
           wget -q https://mesa3d.org
           tar -xf mesa-24.3.4.tar.xz
           mv mesa-24.3.4 mesa-kimchi
 
-      - name: Verificar y optimizar soporte completo Adreno 700 (710 a 750)
+      - name: Optimizar Adreno 700 (710-750)
         working-directory: mesa-kimchi
         run: |
-          cat << 'EOF' > patch_a7xx.py
-          with open('src/freedreno/common/freedreno_devices.py', 'r') as f:
-              code = f.read()
+          python3 -c "p='src/freedreno/common/freedreno_devices.py'; c=open(p).read().replace('has_gmem_fast_clear = False','has_gmem_fast_clear = True'); open(p,'w').write(c)"
 
-          code = code.replace('has_gmem_fast_clear = False', 'has_gmem_fast_clear = True')
-
-          with open('src/freedreno/common/freedreno_devices.py', 'w') as f:
-              f.write(code)
-
-          for gpu in ['710', '720', '722', '725', '730', '732', '735', '740', '750']:
-              status = 'INCLUIDA' if f'Adreno {gpu}' in code or f'A{gpu}' in code else 'NO ENCONTRADA'
-              print(f'Adreno {gpu}: {status}')
-          EOF
-          python3 patch_a7xx.py
-
-      - name: Crear Cross-File optimizado para Adreno 700 (FPS Max / Baja Temp)
+      - name: Crear Cross-File A7xx
         working-directory: mesa-kimchi
         run: |
-          cat <<EOF > android-a7xx.txt
-          [binaries]
-          ar = '$NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar'
-          c = ['ccache', '$NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android31-clang', '-O3', '-march=armv8.2-a+dotprod+fp16', '-mtune=cortex-a720', '-ffast-math', '-fno-semantic-interposition']
-          cpp = ['ccache', '$NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android31-clang++', '-O3', '-march=armv8.2-a+dotprod+fp16', '-mtune=cortex-a720', '-ffast-math', '-fno-exceptions', '-fno-unwind-tables', '-fno-asynchronous-unwind-tables', '-fno-semantic-interposition']
-          c_ld = 'lld'
-          cpp_ld = 'lld'
-          strip = '$NDK_PATH/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip'
+          printf "[binaries]\nar = '%s/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-ar'\nc = ['ccache', '%s/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android31-clang', '-O3', '-march=armv8.2-a+dotprod+fp16', '-mtune=cortex-a720', '-ffast-math', '-fno-semantic-interposition']\ncpp = ['ccache', '%s/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android31-clang++', '-O3', '-march=armv8.2-a+dotprod+fp16', '-mtune=cortex-a720', '-ffast-math', '-fno-exceptions', '-fno-unwind-tables', '-fno-asynchronous-unwind-tables', '-fno-semantic-interposition']\nc_ld = 'lld'\ncpp_ld = 'lld'\nstrip = '%s/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip'\n\n[host_machine]\nsystem = 'android'\ncpu_family = 'aarch64'\ncpu = 'armv8'\nendian = 'little'\n" "$NDK_PATH" "$NDK_PATH" "$NDK_PATH" "$NDK_PATH" > android-a7xx.txt
 
-          [host_machine]
-          system = 'android'
-          cpu_family = 'aarch64'
-          cpu = 'armv8'
-          endian = 'little'
-          EOF
-
-      - name: Compilar Turnip Full A7xx con Meson y Ninja
+      - name: Compilar Turnip A7xx
         working-directory: mesa-kimchi
         run: |
-          meson setup build-a7xx \
-            --cross-file android-a7xx.txt \
-            -Dbuildtype=release \
-            -Db_ndebug=true \
-            -Dplatforms=android \
-            -Dplatform-sdk-version=31 \
-            -Dandroid-stub=true \
-            -Dgallium-drivers= \
-            -Dvulkan-drivers=freedreno \
-            -Dfreedreno-kmds=kgsl \
-            -Dzstd=disabled \
-            -Dllvm=disabled \
-            -Dshader-cache=enabled \
-            -Dshader-cache-default=true \
-            -Db_lto=true \
-            -Dstrip=true
-
+          meson setup build-a7xx --cross-file android-a7xx.txt -Dbuildtype=release -Db_ndebug=true -Dplatforms=android -Dplatform-sdk-version=31 -Dandroid-stub=true -Dgallium-drivers= -Dvulkan-drivers=freedreno -Dfreedreno-kmds=kgsl -Dzstd=disabled -Dllvm=disabled -Dshader-cache=enabled -Dshader-cache-default=true -Db_lto=true -Dstrip=true
           ninja -C build-a7xx
 
-      - name: Empaquetar driver AdrenoTools (.zip)
+      - name: Empaquetar Driver
         run: |
           mkdir -p release_pkg
           cp mesa-kimchi/build-a7xx/src/freedreno/vulkan/libvulkan_freedreno.so release_pkg/vulkan.ad07xx.so
-          
-          cat <<EOF > release_pkg/meta.json
-          {
-            "schemaVersion": 1,
-            "name": "${{ github.event.inputs.driver_name }}",
-            "description": "Turnip K11MCH1 Style para toda la serie Adreno 700 (710-750) - Max FPS",
-            "author": "K11MCH1 / CustomA7xx",
-            "packageVersion": "1",
-            "vendor": "Mesa",
-            "driverVersion": "Vulkan 1.3.296",
-            "minApi": 30,
-            "libraryName": "vulkan.ad07xx.so"
-          }
-          EOF
+          printf '{\n  "schemaVersion": 1,\n  "name": "%s",\n  "description": "Turnip K11MCH1 Style Adreno 700 (710-750) Max FPS",\n  "author": "K11MCH1 / CustomA7xx",\n  "packageVersion": "1",\n  "vendor": "Mesa",\n  "driverVersion": "Vulkan 1.3.296",\n  "minApi": 30,\n  "libraryName": "vulkan.ad07xx.so"\n}\n' "${{ github.event.inputs.driver_name }}" > release_pkg/meta.json
+          cd release_pkg && zip -9 ../Turnip_Full_A7xx_Kimchi_MaxFPS.zip vulkan.ad07xx.so meta.json
 
-          cd release_pkg
-          zip -9 ../Turnip_Full_A7xx_Kimchi_MaxFPS.zip vulkan.ad07xx.so meta.json
-
-      - name: Subir el driver compilado
+      - name: Subir Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Turnip_Full_A7xx_Kimchi_MaxFPS
