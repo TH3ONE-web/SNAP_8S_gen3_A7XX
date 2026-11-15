@@ -16,14 +16,13 @@ jobs:
       - name: Instalar dependencias de compilación
         run: |
           sudo apt-get update
-          sudo apt-get install -y meson ninja-build python3-mako python3-pip glslang-tools zip ccache wget unzip
+          sudo apt-get install -y meson ninja-build python3-mako python3-pip glslang-tools zip ccache
           pip3 install meson --upgrade
 
-      - name: Descargar Android NDK r27c
+      - name: Configurar Android NDK preinstalado
         run: |
-          wget -q https://google.com
-          unzip -q android-ndk-r27c-linux.zip
-          echo "NDK_PATH=$PWD/android-ndk-r27c" >> $GITHUB_ENV
+          echo "NDK_PATH=$ANDROID_NDK_LATEST_HOME" >> $GITHUB_ENV
+          ls -la $ANDROID_NDK_LATEST_HOME
 
       - name: Clonar Mesa de K11MCH1 (Con parches DXVK/Android)
         run: |
@@ -32,7 +31,7 @@ jobs:
       - name: Verificar y optimizar soporte completo Adreno 700 (710 a 750)
         working-directory: mesa-kimchi
         run: |
-          python3 -c "
+          cat << 'EOF' > patch_a7xx.py
           with open('src/freedreno/common/freedreno_devices.py', 'r') as f:
               code = f.read()
 
@@ -44,7 +43,8 @@ jobs:
           for gpu in ['710', '720', '722', '725', '730', '732', '735', '740', '750']:
               status = 'INCLUIDA' if f'Adreno {gpu}' in code or f'A{gpu}' in code else 'NO ENCONTRADA EN ESTA RAMA'
               print(f'Adreno {gpu}: {status}')
-          "
+          EOF
+          python3 patch_a7xx.py
 
       - name: Crear Cross-File optimizado para Adreno 700 (FPS Max / Baja Temp)
         working-directory: mesa-kimchi
