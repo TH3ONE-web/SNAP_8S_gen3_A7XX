@@ -13,7 +13,7 @@ jobs:
       - name: Instalar dependencias
         run: |
           sudo apt-get update
-          sudo apt-get install -y meson ninja-build python3-mako python3-pip glslang-tools zip ccache wget tar
+          sudo apt-get install -y meson ninja-build python3-mako python3-pip glslang-tools zip ccache git
           pip3 install meson --upgrade --break-system-packages || pip3 install meson --upgrade
 
       - name: Configurar NDK
@@ -22,9 +22,7 @@ jobs:
 
       - name: Descargar Mesa Turnip
         run: |
-          wget -q https://mesa3d.org
-          tar -xf mesa-24.3.4.tar.xz
-          mv mesa-24.3.4 mesa-kimchi
+          git clone --depth=1 --branch mesa-24.3.4 https://github.com mesa-kimchi
 
       - name: Optimizar Adreno 700 (710-750)
         working-directory: mesa-kimchi
@@ -54,3 +52,4 @@ jobs:
         with:
           name: Turnip_Full_A7xx_Kimchi_MaxFPS
           path: Turnip_Full_A7xx_Kimchi_MaxFPS.zip
+
