@@ -1,4 +1,4 @@
- name: Build Turnip Full A7xx MaxFPS (Kimchi Base)
+name: Build Turnip Full A7xx MaxFPS (Kimchi Base)
 
 on:
   workflow_dispatch:
