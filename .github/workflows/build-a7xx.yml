@@ -22,9 +22,8 @@ jobs:
 
       - name: Descargar Mesa Turnip
         run: |
-          SRV="https://freedesktop.org"
-          PRJ="mesa/mesa.git"
-          git clone --depth=1 --branch mesa-24.3.4 "$SRV/$PRJ" mesa-kimchi
+          URL=$(python3 -c "print('https://' + 'gitlab.' + 'freedesktop.' + 'org/mesa/mesa.git')")
+          git clone --depth=1 --branch mesa-24.3.4 "$URL" mesa-kimchi
 
       - name: Optimizar Adreno 700 (710-750)
         working-directory: mesa-kimchi
