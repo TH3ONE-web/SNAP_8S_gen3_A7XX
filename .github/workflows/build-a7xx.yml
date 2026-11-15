@@ -22,9 +22,9 @@ jobs:
 
       - name: Descargar Mesa Turnip
         run: |
-          HOST="https://github.com"
-          REPO="Mesa3D/mesa.git"
-          git clone --depth=1 --branch mesa-24.3.4 "$HOST/$REPO" mesa-kimchi
+          SRV="https://freedesktop.org"
+          PRJ="mesa/mesa.git"
+          git clone --depth=1 --branch mesa-24.3.4 "$SRV/$PRJ" mesa-kimchi
 
       - name: Optimizar Adreno 700 (710-750)
         working-directory: mesa-kimchi
